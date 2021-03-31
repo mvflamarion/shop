@@ -6,12 +6,14 @@ import 'product.dart';
 
 class CartItem {
   final String id;
+  final String productId;
   final String title;
   final int quantity;
   final double price;
 
   CartItem({
     @required this.id,
+    @required this.productId,
     @required this.title,
     @required this.quantity,
     @required this.price,
@@ -21,19 +23,28 @@ class CartItem {
 class Cart with ChangeNotifier {
   Map<String, CartItem> _items = {};
 
-  Map<String, CartItem> get item => {..._items};
+  Map<String, CartItem> get items => {..._items};
 
-  int get itemCount => _items.length;
+  int get itemsCount => _items.length;
+
+  double get totalAmount {
+    double total = 0.0;
+    _items.forEach((key, cartItem) {
+      total += cartItem.price * cartItem.quantity;
+    });
+    return total;
+  }
 
   void addItem(Product product) {
     if (_items.containsKey(product.id)) {
       _items.update(
         product.id,
-        (value) => CartItem(
-          id: value.id,
-          title: value.title,
-          quantity: value.quantity + 1,
-          price: value.price,
+        (cartItem) => CartItem(
+          id: cartItem.id,
+          productId: product.id,
+          title: cartItem.title,
+          quantity: cartItem.quantity + 1,
+          price: cartItem.price,
         ),
       );
     } else {
@@ -41,12 +52,18 @@ class Cart with ChangeNotifier {
         product.id,
         () => CartItem(
           id: Random().nextDouble().toString(),
+          productId: product.id,
           title: product.title,
           quantity: 1,
           price: product.price,
         ),
       );
     }
+    notifyListeners();
+  }
+
+  void removeItem(String productId) {
+    _items.remove(productId);
     notifyListeners();
   }
 }
