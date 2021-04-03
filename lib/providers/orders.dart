@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
-
+import 'package:http/http.dart';
+import 'package:shop/utils/constants.dart';
 import 'cart.dart';
 
 class Order {
@@ -21,6 +23,7 @@ class Order {
 }
 
 class Orders with ChangeNotifier {
+  final String _baseUrl = '${Constants.BASE_API_URL}/orders';
   List<Order> _items = [];
 
   List<Order> get items {
@@ -29,13 +32,62 @@ class Orders with ChangeNotifier {
 
   int get itemsCount => _items.length;
 
-  void addOrder(Cart cart) {
+  Future<void> loadOrders() async {
+    List<Order> orders = [];
+    final response = await get('$_baseUrl.json');
+    Map<String, dynamic> data = json.decode(response.body);
+
+    if (data == null) {
+      return Future.value();
+    }
+
+    data.forEach((key, value) {
+      orders.add(
+        Order(
+          id: key,
+          total: value['total'],
+          date: DateTime.parse(value['date']),
+          products: (value['products'] as List<dynamic>).map((e) {
+            return CartItem(
+              id: e['id'],
+              productId: e['productId'],
+              title: e['title'],
+              quantity: e['quantity'],
+              price: e['price'],
+            );
+          }).toList(),
+        ),
+      );
+    });
+
+    _items = orders.reversed.toList();
+    notifyListeners();
+  }
+
+  Future<void> addOrder(Cart cart) async {
+    final date = DateTime.now();
+    final response = await post(
+      '$_baseUrl.json',
+      body: json.encode({
+        'total': cart.totalAmount,
+        'date': date.toIso8601String(),
+        'products': cart.items.values
+            .map((e) => {
+                  'id': e.id,
+                  'productId': e.productId,
+                  'title': e.title,
+                  'quantity': e.quantity,
+                  'price': e.price,
+                })
+            .toList()
+      }),
+    );
     _items.insert(
       0,
       Order(
-        id: Random().nextDouble().toString(),
+        id: json.decode(response.body)['name'],
         total: cart.totalAmount,
-        date: DateTime.now(),
+        date: date,
         products: cart.items.values.toList(),
       ),
     );
